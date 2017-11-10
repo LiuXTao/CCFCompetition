@@ -48,30 +48,26 @@ recruit = pd.read_csv(dir + '9recruit.csv')
 
 
 # 获取企业基本信息表
-# 获取企业基本信息表
-    # entbase=entbase[entbase['ZCZB']<900000]
+entbase=entbase[entbase['ZCZB']<90000]
+
 entbase['ZCZB']=np.log1p(entbase['ZCZB'])
 ZCZB=entbase[['EID','ZCZB']]
 maxValue=ZCZB['ZCZB'].max()
-print(maxValue)
 entbase['ZCZB']=entbase['ZCZB'].fillna(int(ZCZB['ZCZB'].mean()))
-
 entbase['ZCZB']=entbase['ZCZB'].map(lambda x:normalize1(x,maxValue))
-# 题目要求是用0填充，因此对nan进行填充
-entbase = entbase.fillna(0)
-
 
 #根据变更类型进行独热编码
 entbase_ETYPE = pd.get_dummies(entbase['ETYPE'],prefix='ETYPE')
 entbase_ETYPE_merge = pd.concat([entbase['EID'],entbase_ETYPE],axis=1)
-# print(entbase_ETYPE_merge.head(15))
 del entbase_ETYPE_merge['ETYPE_2.0']
 # del entbase_ETYPE_merge['ETYPE_1.0']
 # del entbase_ETYPE_merge['ETYPE_4.0']
 del entbase['ETYPE']
 entbase= pd.merge(entbase,entbase_ETYPE_merge,on=['EID'])
 # del entbase['TZINUM']
-
+# 题目要求是用0填充，因此对nan进行填充
+entbase = entbase.fillna(0)
+entbase['ZCZB_FINZB']=entbase['ZCZB']-entbase['FINZB']
 #提取变更特征
 print('aleter shape',alter.shape)
 print('alter in EID number ratio',len(alter['EID'].unique())*1.0 / all_eid_number)
@@ -85,7 +81,7 @@ ALTERNO_to_index = list(alter['ALTERNO'].unique())
 alter['ALTERNO'] = alter['ALTERNO'].map(ALTERNO_to_index.index)
 
 alter['ALTAF']=alter['ALTAF'].map(get_number)
-# alter=alter[alter['ALTAF']<2000000]
+alter=alter[alter['ALTAF']<2000000]
 print(alter['ALTAF'].max())
 alter['ALTAF'] = np.log1p(alter['ALTAF'])
 ALTAF=alter['ALTAF']
