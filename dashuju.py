@@ -49,10 +49,13 @@ recruit = pd.read_csv(dir + '9recruit.csv')
 
 # 获取企业基本信息表
 # 获取企业基本信息表
+    # entbase=entbase[entbase['ZCZB']<900000]
 entbase['ZCZB']=np.log1p(entbase['ZCZB'])
-ZCZB=entbase['ZCZB']
-maxValue=ZCZB.max()
-entbase['ZCZB']=ZCZB.fillna(int(ZCZB.mean()))
+ZCZB=entbase[['EID','ZCZB']]
+maxValue=ZCZB['ZCZB'].max()
+print(maxValue)
+entbase['ZCZB']=entbase['ZCZB'].fillna(int(ZCZB['ZCZB'].mean()))
+
 entbase['ZCZB']=entbase['ZCZB'].map(lambda x:normalize1(x,maxValue))
 # 题目要求是用0填充，因此对nan进行填充
 entbase = entbase.fillna(0)
@@ -63,9 +66,11 @@ entbase_ETYPE = pd.get_dummies(entbase['ETYPE'],prefix='ETYPE')
 entbase_ETYPE_merge = pd.concat([entbase['EID'],entbase_ETYPE],axis=1)
 # print(entbase_ETYPE_merge.head(15))
 del entbase_ETYPE_merge['ETYPE_2.0']
+# del entbase_ETYPE_merge['ETYPE_1.0']
+# del entbase_ETYPE_merge['ETYPE_4.0']
 del entbase['ETYPE']
 entbase= pd.merge(entbase,entbase_ETYPE_merge,on=['EID'])
-
+# del entbase['TZINUM']
 
 #提取变更特征
 print('aleter shape',alter.shape)
@@ -79,7 +84,10 @@ ALTERNO_to_index = list(alter['ALTERNO'].unique())
 # 1 2 有金钱变化
 alter['ALTERNO'] = alter['ALTERNO'].map(ALTERNO_to_index.index)
 
-alter['ALTAF'] = np.log1p(alter['ALTAF'].map(get_number))
+alter['ALTAF']=alter['ALTAF'].map(get_number)
+# alter=alter[alter['ALTAF']<2000000]
+print(alter['ALTAF'].max())
+alter['ALTAF'] = np.log1p(alter['ALTAF'])
 ALTAF=alter['ALTAF']
 maxA=ALTAF.max()
 alter['ALTAF']=alter['ALTAF'].fillna(int(ALTAF.mean()))
@@ -106,9 +114,8 @@ alter_ALTERNO_merge = pd.concat([alter['EID'],alter_ALTERNO],axis=1)
 alter_ALTERNO_info_sum = alter_ALTERNO_merge.groupby(['EID'],as_index=False).sum()
 alter_ALTERNO_info_count = alter_ALTERNO_merge.groupby(['EID'],as_index=False).count()  #记录变更次数
 alter_ALTERNO_info_ration = alter_ALTERNO_merge.groupby(['EID']).sum() / alter_ALTERNO_merge.groupby(['EID']).count()
-# print(alter_ALTERNO_info_ration.head(15))
 alter_ALTERNO_info_ration = alter_ALTERNO_info_ration.reset_index()
-# print(alter_ALTERNO_info_ration.head(15))
+
 
 # 变更的第一年
 alter_first_year = pd.DataFrame(alter[['EID','ALTDATE_YEAR']]).drop_duplicates(['EID'])
@@ -122,36 +129,78 @@ alter_last_month=pd.DataFrame(alter[['EID','ALTDATE_MONTH']]).drop_duplicates(['
 alter_last_year.rename(columns={'ALTDATE_YEAR':'last_year'},inplace=True)
 alter_last_month.rename(columns={'ALTDATE_MONTH':'last_month'},inplace=True)
 
+alter_year=alter.groupby(by=['EID'])['ALTDATE_YEAR'].mean().astype(int)
+alter_year=alter_year.reset_index()
+
+alter_month=alter.groupby(by=['EID'])['ALTDATE_MONTH'].mean().astype(int)
+alter_month=alter_month.reset_index()
+
 alter_ALTERNO_info = pd.merge(alter_ALTERNO_info_sum,alter[['ALTAF_ALTBE','EID']],on=['EID']).drop_duplicates(['EID'])
-alter_ALTERNO_info = pd.merge(alter_ALTERNO_info,alter_last_year,on=['EID'])
+# alter_ALTERNO_info = pd.merge(alter_ALTERNO_info,alter_year,on=['EID'])
+# alter_ALTERNO_info=pd.merge(alter_ALTERNO_info,alter_month,on=['EID'],how='left')
+alter_ALTERNO_info=pd.merge(alter_ALTERNO_info,alter_last_year,on=['EID'],how='left')
 alter_ALTERNO_info=pd.merge(alter_ALTERNO_info,alter_last_month,on=['EID'],how='left')
 alter_ALTERNO_info = alter_ALTERNO_info.fillna(-1)
+# del alter_ALTERNO_info['ALTERNO_11']
+# del alter_ALTERNO_info['ALTERNO_10']
 
+# # print branch
+# branch['B_ENDYEAR'] = branch['B_ENDYEAR'].fillna(branch['B_REYEAR'])
+# # print(branch['B_ENDYEAR'])
+# branch['sub_life'] = branch['B_ENDYEAR'].fillna(branch['B_REYEAR']) - branch['B_REYEAR']
+# # 筛选数据
+# branch = branch[branch['sub_life']>=0]
+# branch_count = branch.groupby(['EID'],as_index=False)['TYPECODE'].count()
+# branch_count.rename(columns = {'TYPECODE':'branch_count'},inplace=True)
+# branch = pd.merge(branch,branch_count,on=['EID'],how='left')
+# branch['branch_count'] = np.log1p(branch['branch_count'])
+# branch['branch_count'] = branch['branch_count'].astype(int)
+# branch['survive_num']=branch.groupby(['EID'])['sub_life'].count()
+# branch['sub_life'] = branch['sub_life'].replace({0.0:-1})
+# # print(branch)
 
+# home_prob = branch.groupby(by=['EID'])['IFHOME'].sum()/ branch.groupby(by=['EID'])['IFHOME'].count()
+# home_prob = home_prob.reset_index()
+# bran_last_year=pd.DataFrame(branch[['EID','B_REYEAR']]).sort_values(['B_REYEAR'],ascending=False).drop_duplicates(['EID'])
+# branch = pd.DataFrame(branch[['EID','sub_life']]).drop_duplicates('EID')
+# branch = pd.merge(branch,home_prob,on=['EID'],how='left')
+# branch = pd.merge(branch,bran_last_year,on=['EID'])
 
-branch_copy = branch.copy()
-# print branch
 branch['B_ENDYEAR'] = branch['B_ENDYEAR'].fillna(branch['B_REYEAR'])
-# print(branch['B_ENDYEAR'])
-branch['sub_life'] = branch['B_ENDYEAR'].fillna(branch['B_REYEAR']) - branch['B_REYEAR']
+branch['sub_life'] = branch['B_ENDYEAR']- branch['B_REYEAR']
+branch['sub_life']=branch['sub_life']>0
+branch['sub_life']=branch['sub_life'].astype(int)
+branch_close_rate=branch.groupby(['EID'])['sub_life'].sum()/branch.groupby(['EID'])['sub_life'].count()
+branch_close_rate=branch_close_rate.reset_index()
+branch_close_rate.rename(columns={'sub_life':'branch_close_rate'})
 # 筛选数据
-branch = branch[branch['sub_life']>=0]
 branch_count = branch.groupby(['EID'],as_index=False)['TYPECODE'].count()
 branch_count.rename(columns = {'TYPECODE':'branch_count'},inplace=True)
+branch_count['branch_count']=branch_count['branch_count'].map(lambda x:normalize1(x,branch_count['branch_count'].max()))
+
+# print(branch_count.head(20))
 branch = pd.merge(branch,branch_count,on=['EID'],how='left')
+# print(branch.head(20))
 branch['branch_count'] = np.log1p(branch['branch_count'])
 branch['branch_count'] = branch['branch_count'].astype(int)
-branch['survive_num']=branch.groupby(['EID'])['sub_life'].count()
 branch['sub_life'] = branch['sub_life'].replace({0.0:-1})
-# print(branch)
+branch['sub_life'].fillna(-1)
 
 home_prob = branch.groupby(by=['EID'])['IFHOME'].sum()/ branch.groupby(by=['EID'])['IFHOME'].count()
 home_prob = home_prob.reset_index()
+
+bran_first_year=pd.DataFrame(branch[['EID','B_REYEAR']]).sort_values(['B_REYEAR'],ascending=True).drop_duplicates(['EID'])
+bran_first_year.rename(columns={'B_REYEAR':'bran_firstY'},inplace=True)
 bran_last_year=pd.DataFrame(branch[['EID','B_REYEAR']]).sort_values(['B_REYEAR'],ascending=False).drop_duplicates(['EID'])
-branch = pd.DataFrame(branch[['EID','sub_life']]).drop_duplicates('EID')
+bran_last_year.rename(columns={'B_REYEAR':'bran_lastY'},inplace=True)
+branch = pd.DataFrame(branch[['EID','branch_count']]).drop_duplicates('EID')
 branch = pd.merge(branch,home_prob,on=['EID'],how='left')
-branch = pd.merge(branch,bran_last_year,on=['EID'])
-# print(branch)
+branch=pd.merge(branch,branch_close_rate,on=['EID'],how='left')
+branch = pd.merge(branch,bran_last_year,on=['EID'],how='left')
+branch=pd.merge(branch,bran_first_year,on=['EID'],how='left')
+# branch['year_sub']=branch['bran_lastY']-branch['bran_firstY']
+
+
 
 
 invest['BTENDYEAR'] = invest['BTENDYEAR'].fillna(invest['BTYEAR'])
@@ -241,6 +290,10 @@ project=pd.merge(project[['EID']],project_last_month,on=['EID'],how='left')
 project=pd.merge(project,project_home_prob,on=['EID'],how='left')
 
 print(project)
+money_sum=lawsuit[['EID','LAWAMOUNT']].groupby('EID').sum()
+money_sum=money_sum.rename(columns={"LAWAMOUNT":"money_sum"})
+money_sum['money_sum']=np.log1p(money_sum['money_sum'])
+
 # money_sum=lawsuit[['EID','LAWAMOUNT']].groupby('EID').sum()
 # money_sum=money_sum.rename(columns={"LAWAMOUNT":"money_sum"})
 # zczb=entbase[['EID','ZCZB']].copy()
@@ -380,12 +433,14 @@ params={
     'boosting_type': 'gbdt',
     'objective': 'binary',
     'metric': {'auc'},
-    'num_leaves': 128,
+    'num_leaves': 128,  #128
     'learning_rate': 0.05,
     'feature_fraction': 0.9,
     'bagging_fraction': 0.8,
     'bagging_freq': 5,
     'verbose': 0,
+    # 'max_bin':1,
+
     # 'max_depth':7
 }
 
@@ -418,11 +473,12 @@ print('Start predicting...')
 y_pred = gbm.predict(test.values, num_iteration=gbm.best_iteration)
 y_pred = np.round(y_pred,8)
 result = pd.DataFrame({'PROB':list(y_pred),})
-result['FORTARGET'] = result['PROB'] > 0.225
+result['FORTARGET'] = result['PROB'] > 0.222
 result['PROB'] = result['PROB'].astype('str')
 result['FORTARGET'] = result['FORTARGET'].astype('int')
 result = pd.concat([test_index,result],axis=1)
-
+print('positive sample',result[result.FORTARGET == 1].__len__())
+print('positive ration',result[result.FORTARGET == 1].__len__() * 1.0/ len(result))
 print('predict pos tation',sum(result['FORTARGET']))
 
 result = pd.DataFrame(result).drop_duplicates(['EID'])
